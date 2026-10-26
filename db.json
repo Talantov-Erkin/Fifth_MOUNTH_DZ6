@@ -1,28 +1,28 @@
 {
   "products": [
     {
-      "id": 1,
+      "id": "1",
       "title": "Iphone 15",
       "category": "phones",
       "price": 999,
       "rating": 4.8
     },
     {
-      "id": 2,
+      "id": "2",
       "title": "Galaxy S24",
       "category": "phones",
       "price": 899,
       "rating": 4.6
     },
     {
-      "id": 3,
+      "id": "3",
       "title": "Macbook Air",
       "category": "laptops",
       "price": 1199,
       "rating": 4.9
     },
     {
-      "id": 4,
+      "id": "4",
       "title": "Airpods Pro",
       "category": "audio",
       "price": 249,
@@ -33,7 +33,8 @@
       "price": 2000,
       "category": "phones",
       "rating": 0,
-      "id": 5
+      "id": "5"
     }
-  ]
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
 }

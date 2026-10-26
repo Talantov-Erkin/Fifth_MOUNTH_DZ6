@@ -1,69 +1,105 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { getProducts } from "../api/products"
-import { useSearchParams } from "react-router-dom"
+import { useEffect } from 'react'
+import { Alert, Button, Input, Popconfirm, Select, Space, Table } from 'antd'
+import { useSearchParams } from 'react-router-dom'
+import { useProductsStore } from '../store/productsStore'
+import { useDeleteProduct, useProducts } from '../hooks/useProducts'
+import { EditProductModal } from '../components/EditProductModal'
+import styles from './Products.module.scss'
 
+const CATEGORIES = [
+    { value: '', label: 'Все' },
+    { value: 'phones', label: 'Телефоны' },
+    { value: 'laptops', label: 'Ноутбуки' },
+    { value: 'audio', label: 'Аудио' },
+]
+
+const SORTS = [
+    { value: 'price-asc', label: 'Сначала дешевые' },
+    { value: 'price-desc', label: 'Сначала дорогие' },
+    { value: 'rating-desc', label: 'По рейтингу' },
+]
 
 export default function ProductsPage() {
+    const filters = useProductsStore((s) => s.filters)
+    const setFilter = useProductsStore((s) => s.setFilter)
+    const setSort = useProductsStore((s) => s.setSort)
+    const resetFilters = useProductsStore((s) => s.resetFilters)
+    const openEdit = useProductsStore((s) => s.openEdit)
 
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [, setSearchParams] = useSearchParams()
 
-    const filters = {
-        q: searchParams.get('q') ?? '',
-        category: searchParams.get('category') ?? '',
-        sort: searchParams.sort('sort') ?? 'price',
-        order: searchParams.get('order') ?? 'asc'
-    }
+    // фильтры из стора -> в URL
+    useEffect(() => {
+        const next = new URLSearchParams()
+        Object.entries(filters).forEach(([key, value]) => value && next.set(key, value))
+        setSearchParams(next, { replace: true })
+    }, [filters, setSearchParams])
 
-    const updateFiltesrs = (key, value) => {
-        const next = new URLSearchParams(searchParams)
-        value ? next.set(key, value) : next.delete(key);
-        setSearchParams(next)
-    }
+    const { data = [], isLoading, isFetching, error } = useProducts(filters)
+    const { mutate: removeProduct, isPending: isDeleting } = useDeleteProduct()
 
-    const { data = [], isLoading, isFetching, error } = useQuery({
-        queryKey: ['products', filters], // параметры - часть ключа
-        queryFn: () => getProducts(filters),
-        placeholderData: keepPreviousData // не мигать пустым экраном
-    })
+    const columns = [
+        { title: 'Название', dataIndex: 'title' },
+        { title: 'Категория', dataIndex: 'category' },
+        { title: 'Цена', dataIndex: 'price' },
+        { title: 'Рейтинг', dataIndex: 'rating' },
+        {
+            title: 'Действия',
+            render: (_, product) => (
+                <Space>
+                    <Button size="small" onClick={() => openEdit(product)}>Изменить</Button>
+                    <Popconfirm title="Удалить товар?" onConfirm={() => removeProduct(product.id)}>
+                        <Button size="small" danger loading={isDeleting}>Удалить</Button>
+                    </Popconfirm>
+                </Space>
+            ),
+        },
+    ]
 
-    if (isLoading) return <p>Загрузка...</p>
-    if (error) return <p>Ошибка: {error.message}</p>
-    
-    return ( 
-            <div>
-                <input
+    if (error) return <Alert type="error" message={`Ошибка: ${error.message}`} />
+
+    return (
+        <div className={styles.page}>
+            <div className={styles.filters}>
+                <Input.Search
+                    key={filters.q} // сбрасывает поле при resetFilters
+                    className={styles.search}
                     placeholder="Поиск"
+                    defaultValue={filters.q}
+                    allowClear
+                    onSearch={(value) => setFilter('q', value)}
                 />
 
-                <select value={filters.category} onChange={(e) => updateFiltesrs('category', e.target.value)}>
-                    <option value=''>Все</option>
-                    <option value='phones'>Телефоны</option>
-                    <option value="laptops">Ноутбуки</option>
-                    <option value='audio'>Аудио</option>
-                </select>
+                <Select
+                    className={styles.select}
+                    value={filters.category}
+                    options={CATEGORIES}
+                    onChange={(value) => setFilter('category', value)}
+                />
 
-                <select 
+                <Select
+                    className={styles.select}
                     value={`${filters.sort}-${filters.order}`}
-                    onChange={(e) => {
-                        const [sort, order] = e.target.value.split('-');
-                        const next = new URLSearchParams(searchParams)
-                        next.set('sort', sort)
-                        next.set('order', order)
-                        setSearchParams(next)
+                    options={SORTS}
+                    onChange={(value) => {
+                        const [sort, order] = value.split('-')
+                        setSort(sort, order)
                     }}
-                >
-                    <option value='price-asc'>Сначала дешевые</option>
-                    <option value='price-desc'>Сначала дорогие</option>
-                    <option value='price-rating'>По рейтингу</option>
-                </select>
+                />
 
+                <Button onClick={resetFilters}>Сбросить</Button>
                 {isFetching && <small>Обновляем...</small>}
-
-                <ul>
-                    {data.map((p) => (
-                        <li key={p.id}>{p.title} - {p.price} {p.rating}</li>
-                    ))}
-                </ul>
             </div>
-        )
+
+            <Table
+                rowKey="id"
+                columns={columns}
+                dataSource={data}
+                loading={isLoading}
+                pagination={{ pageSize: 10 }}
+            />
+
+            <EditProductModal />
+        </div>
+    )
 }

@@ -1,34 +1,48 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { useState } from "react";
-import { createProduct } from "../api/products";
-
+import { Button, Card, Form, Input, InputNumber, Select } from 'antd'
+import { useCreateProduct } from '../hooks/useProducts'
+import styles from './AddProductForm.module.scss'
 
 export function AddProductForm() {
+    const [form] = Form.useForm()
+    const { mutate, isPending } = useCreateProduct()
 
-    const queryClient = useQueryClient();
-    const [title, setTitle] = useState('')
-    const [price, setPrice] = useState('')
-
-    const { mutate, isPending, isError, error } = useMutation({
-        mutationFn: createProduct,
-        onSuccess: () => {
-            setTitle('')
-            setPrice('')
-            alert('успешно создан продукт')
-        }
-    })
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        mutate({ title, price: Number(price), category: 'phones', rating: 0 })
+    const handleFinish = (values) => {
+        mutate(
+            { ...values, rating: 0 },
+            { onSuccess: () => form.resetFields() }
+        )
     }
 
     return (
-        <form onSubmit={handleSubmit}>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название" />
-            <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Цена" type="number"/>
-            <button disabled={isPending}>{isPending ? 'Сохраняем...' : 'Добавить'}</button>
-            {isError && <p>Ошибка: {error.message}</p>}
-        </form>
+        <Card title="Новый товар" className={styles.card}>
+            <Form
+                form={form}
+                layout="vertical"
+                onFinish={handleFinish}
+                initialValues={{ category: 'phones' }}
+            >
+                <Form.Item name="title" label="Название" rules={[{ required: true, message: 'Введите название' }]}>
+                    <Input placeholder="Название" />
+                </Form.Item>
+
+                <Form.Item name="price" label="Цена" rules={[{ required: true, message: 'Введите цену' }]}>
+                    <InputNumber min={0} placeholder="Цена" className={styles.fullWidth} />
+                </Form.Item>
+
+                <Form.Item name="category" label="Категория">
+                    <Select
+                        options={[
+                            { value: 'phones', label: 'Телефоны' },
+                            { value: 'laptops', label: 'Ноутбуки' },
+                            { value: 'audio', label: 'Аудио' },
+                        ]}
+                    />
+                </Form.Item>
+
+                <Button type="primary" htmlType="submit" loading={isPending}>
+                    {isPending ? 'Сохраняем...' : 'Добавить'}
+                </Button>
+            </Form>
+        </Card>
     )
 }
